@@ -1,12 +1,8 @@
 #!/bin/bash
 
-# Output directory
 mkdir -p pokemon_data
-
-# List of Pokémon to fetch
 pokemon_list=(bulbasaur ivysaur venusaur charmander charmeleon)
 
-# Function to fetch a single Pokémon
 fetch_pokemon() {
     name="$1"
     lower_name=$(echo "$name" | tr '[:upper:]' '[:lower:]')
@@ -25,13 +21,24 @@ fetch_pokemon() {
     fi
 }
 
-# Loop through and run each fetch in background
+# Run fetches in parallel
+pids=()
 for pokemon in "${pokemon_list[@]}"; do
-    fetch_pokemon "$pokemon" &
+    (
+        fetch_pokemon "$pokemon"
+    ) &
+    pids+=($!)
 done
 
-# Wait for all background jobs to finish
-wait
+# Wait and manage processes
+for pid in "${pids[@]}"; do
+    if wait "$pid"; then
+        echo "Process $pid completed successfully."
+    else
+        echo "Process $pid failed. Killing..."
+        kill "$pid" 2>/dev/null
+    fi
+done
 
-echo "✅ All Pokémon data fetched."
+echo "✅ All Pokémon processes handled."
 
