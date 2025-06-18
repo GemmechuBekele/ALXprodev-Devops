@@ -1,37 +1,45 @@
 #!/bin/bash
 
-# Directory to store the data
-mkdir -p pokemon_data
+# Output directory for Pokémon data
+OUTPUT_DIR="pokemon_data"
+mkdir -p "$OUTPUT_DIR"
 
-# List of Pokémon to fetch
+# List of Pokémon to process
 pokemon_list=(bulbasaur ivysaur venusaur charmander charmeleon)
 
 # Loop through each Pokémon
 for name in "${pokemon_list[@]}"; do
     echo "Fetching data for $name..."
 
-    # Convert name to lowercase (just in case)
     lower_name=$(echo "$name" | tr '[:upper:]' '[:lower:]')
-
-    # API URL
     url="https://pokeapi.co/api/v2/pokemon/$lower_name"
+    output_file="$OUTPUT_DIR/${lower_name}.json"
 
-    # Output file
-    output_file="pokemon_data/${lower_name}.json"
+    success=false
 
-    # Fetch data using curl
-    response=$(curl -s -w "%{http_code}" -o "$output_file" "$url")
-    http_code="${response: -3}"
+    # Try up to 3 times
+    for attempt in {1..3}; do
+        response=$(curl -s -w "%{http_code}" -o "$output_file" "$url")
+        http_code="${response: -3}"
 
-    # Check if request succeeded
-    if [ "$http_code" -eq 200 ]; then
-        echo "Saved data to $output_file ✅"
-    else
-        echo "❌ Failed to fetch data for $name (HTTP $http_code)"
-        rm -f "$output_file"  # Remove incomplete file if it failed
+        if [ "$http_code" -eq 200 ]; then
+            echo "Saved data to $output_file ✅"
+            success=true
+            break
+        else
+            echo "Attempt $attempt failed for $name (HTTP $http_code). Retrying..."
+            sleep 2  # delay before retry
+        fi
+    done
+
+    # If all attempts fail
+    if [ "$success" = false ]; then
+        echo "$(date) ❌ Failed to fetch data for $name after 3 attempts (HTTP $http_code)" >> error_log.txt
+        rm -f "$output_file"
+        echo "❌ Failed to fetch data for $name. Logged to error_log.txt"
     fi
 
-    # Wait 1 second between requests to avoid rate-limiting
+    # Delay between Pokémon to prevent rate-limiting
     sleep 1
 done
 
