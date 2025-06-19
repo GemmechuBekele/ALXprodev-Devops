@@ -1,7 +1,10 @@
 #!/bin/bash
 
 mkdir -p pokemon_data
-pokemon_list=(bulbasaur ivysaur venusaur charmander charmeleon)
+pokemon_list=(Bulbasaur Ivysaur Venusaur Charmander Charmeleon)
+
+# Array to store background process IDs
+declare -a pids
 
 fetch_pokemon() {
     name="$1"
@@ -21,16 +24,30 @@ fetch_pokemon() {
     fi
 }
 
-# Start each fetch in the background
+# Cleanup function to kill all background processes if script is interrupted
+cleanup() {
+    echo "Cleaning up..."
+    for pid in "${pids[@]}"; do
+        if ps -p "$pid" > /dev/null; then
+            kill "$pid" 2>/dev/null
+        fi
+    done
+    exit 1
+}
+
+# Trap interrupt signals (Ctrl+C) and call cleanup
+trap cleanup SIGINT SIGTERM
+
+# Start each fetch in the background and store PIDs
 for pokemon in "${pokemon_list[@]}"; do
     fetch_pokemon "$pokemon" &
+    pids+=($!)
 done
 
-# ✅ Required by the checker — show background jobs
+# Show background jobs (required by checker)
 jobs
 
-# Wait for all background jobs
+# Wait for all background jobs to complete
 wait
 
 echo "✅ All Pokémon data fetched."
-
